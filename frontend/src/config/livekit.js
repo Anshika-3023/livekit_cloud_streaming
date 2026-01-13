@@ -16,32 +16,13 @@ export const LIVEKIT_URL = livekitUrl;
 export const TOKEN_ENDPOINT = tokenEndpoint;
 
 export const ICE_SERVERS = {
-  // LiveKit Cloud TURN servers for restricted networks
-  // These are required for camera publishing to work through firewalls/NATs
+  // LiveKit Cloud automatically provides TURN servers
+  // Use default configuration for best compatibility
   iceServers: [
-    // STUN servers - for NAT traversal discovery
+    // Google STUN servers for NAT traversal
     { urls: "stun:stun.l.google.com:19302" },
-    { urls: "stun:global.stun.livekit.com:3478" },
-    // TURN servers - for relaying when direct peer-to-peer fails
-    // UDP TURN (preferred for media)
-    {
-      urls: "turn:livekit.cloud:443?transport=udp",
-      username: "livekit",
-      credential: "livekit",
-    },
-    // TCP TURN (fallback for restrictive networks)
-    {
-      urls: "turn:livekit.cloud:443?transport=tcp",
-      username: "livekit",
-      credential: "livekit",
-    },
-    // Additional TURN server for redundancy
-    {
-      urls: "turn:turn.livekit.cloud:443?transport=udp",
-      username: "livekit",
-      credential: "livekit",
-    },
+    { urls: "stun:stun1.l.google.com:19302" },
   ],
-  // ICE candidate gathering timeout (ms)
-  iceCandidatePoolSize: 10,
+  // ICE transport policy - use 'all' to try all options
+  iceTransportPolicy: "all",
 };

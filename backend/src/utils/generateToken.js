@@ -41,6 +41,8 @@ export function generateToken(roomName, participantName) {
     canSubscribe: true,
     canPublishData: true,
     canUpdateOwnMetadata: true,
+    // Explicitly allow publishing camera and microphone
+    canPublishSources: ["camera", "microphone"],
   });
 
   return at.toJwt();

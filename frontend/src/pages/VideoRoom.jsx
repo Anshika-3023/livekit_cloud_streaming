@@ -108,13 +108,12 @@ export default function VideoRoom() {
           dynacast: true,
           rtcConfig: rtcConfig,
           publishDefaults: {
-            timeout: 20000, // Increased timeout for TURN negotiation
             videoEncoding: {
               maxBitrate: 1500000,
               maxFramerate: 30,
             },
             videoCodec: "VP8",
-            audioBitrate: 16000,
+            audioBitrate: 20000,
           },
           videoCaptureDefaults: {
             resolution: VideoPresets.h720.resolution,
@@ -137,29 +136,43 @@ export default function VideoRoom() {
         newRoom.on(RoomEvent.TrackSubscribed, () => updateParticipants(newRoom));
         newRoom.on(RoomEvent.TrackUnsubscribed, () => updateParticipants(newRoom));
 
+        // Track publication listener for local video
+        newRoom.on(RoomEvent.LocalTrackPublished, (publication) => {
+          console.log("Local track published:", publication.kind);
+          if (publication.kind === Track.Kind.Video && localVideoRef.current) {
+            const track = publication.track?.mediaStreamTrack;
+            if (track) {
+              localVideoRef.current.srcObject = new MediaStream([track]);
+            }
+          }
+        });
+
         // 1️⃣ Connect to Room
+        console.log("Step 1: Connecting to room...");
         await newRoom.connect(LIVEKIT_URL, token);
+        console.log("Connected successfully!");
 
-        // 2️⃣ Prepare connection (fixes publish timeout)
-        await newRoom.prepareConnection();
-
-        // 3️⃣ Get media permissions explicitly with retry
-        console.log("Requesting camera + mic...");
+        // 2️⃣ Enable camera and microphone (this will request permissions and publish)
+        console.log("Step 2: Requesting camera + mic...");
         try {
+          // Enable camera
           await newRoom.localParticipant.setCameraEnabled(true);
+          console.log("Camera enabled");
+          
+          // Enable microphone
           await newRoom.localParticipant.setMicrophoneEnabled(true);
+          console.log("Microphone enabled");
+          
+          // 3️⃣ Attach local video after successful publication
+          const videoTrack = newRoom.localParticipant.videoTrackPublications.values().next().value;
+          if (videoTrack?.track && localVideoRef.current) {
+            const mediaStreamTrack = videoTrack.track.mediaStreamTrack;
+            localVideoRef.current.srcObject = new MediaStream([mediaStreamTrack]);
+            console.log("Local video attached");
+          }
         } catch (mediaError) {
-          console.error("Media enable failed, retrying once...", mediaError);
-          // Brief delay before retry
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          await newRoom.localParticipant.setCameraEnabled(true);
-          await newRoom.localParticipant.setMicrophoneEnabled(true);
-        }
-
-        // 4️⃣ Attach local video
-        if (newRoom.localParticipant.videoTrack && localVideoRef.current) {
-          const track = newRoom.localParticipant.videoTrack.mediaStreamTrack;
-          localVideoRef.current.srcObject = new MediaStream([track]);
+          console.error("Media enable failed:", mediaError);
+          throw new Error(`Failed to enable camera/microphone: ${mediaError.message}`);
         }
 
         setRoom(newRoom);
